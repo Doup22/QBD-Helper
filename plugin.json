@@ -1,5 +1,15 @@
 {
-    "name": "POF Helper",
-    "version": "0.0.1",
-    "contactEmailAddress": "dustinsnyder31@gmail.com"
+    "name": "Queen Black Dragon Helper",
+    "version": "0.5.14",
+    "contactEmailAddress": "dustinsnyder31@gmail.com",
+    "hasSettingsIcon": true,
+    "requiredDependencies": {
+        "prettyui": 6398181
+    },
+    "optionalDependencies": {},
+    "requiredPermissions": [],
+    "optionalPermissions": [
+        "chatAccess"
+    ],
+    "urls": {}
 }
