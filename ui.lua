@@ -19,21 +19,34 @@ local LAYOUT = {
     compact = { startY = 34, height = 21, spacing = 24, bottom = 5, alertGap = 7 }
 }
 
-local COLOUR = {
-    default = Vector4.new(0.88, 0.84, 0.74, 1.0),
-    label = Vector4.new(0.73, 0.64, 0.45, 1.0),
-    accent = Vector4.new(0.94, 0.78, 0.40, 1.0),
-    windowTitle = Vector4.new(0.85, 0.67, 0.43, 1.0),
-    muted = Vector4.new(0.72, 0.72, 0.72, 1.0),
-    crystal = Vector4.new(0.30, 0.85, 1.0, 1.0),
-    hardened = Vector4.new(0.384, 0.592, 0.255, 1.0),
-    danger = Vector4.new(1.0, 0.18, 0.18, 1.0),
-    ready = Vector4.new(0.35, 1.0, 0.35, 1.0),
-    rowA = Vector4.new(0.08, 0.07, 0.06, 0.22),
-    rowB = Vector4.new(0.16, 0.12, 0.08, 0.22),
-    alertRow = Vector4.new(0.24, 0.05, 0.04, 0.20),
-    divider = Vector4.new(0.60, 0.45, 0.22, 0.80)
+local DEFAULT_COLOUR = {
+    default = 0xE0D6BDFF,
+    label = 0xBAA373FF,
+    accent = 0xF0C766FF,
+    windowTitle = 0xD9AB6EFF,
+    muted = 0xB8B8B8FF,
+    crystal = 0x4CD9FFFF,
+    hardened = 0x629741FF,
+    danger = 0xFF2E2EFF,
+    ready = 0x59FF59FF,
+    rowBackground = 0x14120F38,
+    alertRow = 0x3D0D0A33,
+    divider = 0x997338CC
 }
+
+local COLOUR = {}
+for name, value in pairs(DEFAULT_COLOUR) do
+    COLOUR[name] = value
+end
+
+local function rgbaToVector4(rgba)
+    local r = math.floor(rgba / 0x1000000) % 0x100
+    local g = math.floor(rgba / 0x10000) % 0x100
+    local b = math.floor(rgba / 0x100) % 0x100
+    local a = rgba % 0x100
+
+    return Vector4.new(r / 255, g / 255, b / 255, a / 255)
+end
 
 local DB = {
     posX = "qbd_helper_window_x",
@@ -47,7 +60,15 @@ local DB = {
     souls = "qbd_helper_show_souls",
     timeStop = "qbd_helper_show_timestop",
     mechanic = "qbd_helper_show_mechanic",
-    mechanicDuration = "qbd_helper_mechanic_duration_seconds"
+    mechanicDuration = "qbd_helper_mechanic_duration_seconds",
+    colourDefault = "qbd_helper_colour_default",
+    colourLabel = "qbd_helper_colour_label",
+    colourAccent = "qbd_helper_colour_accent",
+    colourWindowTitle = "qbd_helper_colour_window_title",
+    colourCrystal = "qbd_helper_colour_crystal",
+    colourHardened = "qbd_helper_colour_hardened",
+    colourReady = "qbd_helper_colour_ready",
+    colourDanger = "qbd_helper_colour_danger"
 }
 
 local settings = {
@@ -61,6 +82,17 @@ local settings = {
     showTimeStop = true,
     showMechanic = true,
     mechanicDurationSeconds = 6
+}
+
+local COLOUR_SETTINGS = {
+    { key = "default", db = DB.colourDefault, label = "Normal text" },
+    { key = "label", db = DB.colourLabel, label = "Row labels" },
+    { key = "accent", db = DB.colourAccent, label = "Phase value" },
+    { key = "windowTitle", db = DB.colourWindowTitle, label = "Window title" },
+    { key = "crystal", db = DB.colourCrystal, label = "Crystal form" },
+    { key = "hardened", db = DB.colourHardened, label = "Hardened Carapace" },
+    { key = "ready", db = DB.colourReady, label = "Artefact ready" },
+    { key = "danger", db = DB.colourDanger, label = "Mechanic alerts" }
 }
 
 local ROW_SETTINGS = {
@@ -115,7 +147,32 @@ local function readInt(key, defaultValue)
     return value == nil and defaultValue or value
 end
 
+local function readColour(key, defaultValue)
+    local saved = PersistentDB:GetString(key)
+    if not saved then
+        return defaultValue
+    end
+
+    local value = tonumber(saved, 16)
+    if not value or value < 0 or value > 0xFFFFFFFF then
+        return defaultValue
+    end
+
+    return value
+end
+
+local function saveColour(key, value)
+    PersistentDB:SetString(key, string.format("%08X", value))
+end
+
+local function loadColours()
+    for _, option in ipairs(COLOUR_SETTINGS) do
+        COLOUR[option.key] = readColour(option.db, DEFAULT_COLOUR[option.key])
+    end
+end
+
 local function loadSettings()
+    loadColours()
     settings.coloursEnabled = readBool(DB.colours, true)
     settings.compactMode = readBool(DB.compact, false)
     settings.showPhase = readBool(DB.phase, true)
@@ -223,7 +280,7 @@ local function setTitleComponentColour(component)
     end
 
     return pcall(function()
-        component.colour = COLOUR.windowTitle
+        component.colour = rgbaToVector4(COLOUR.windowTitle)
     end)
 end
 
@@ -258,7 +315,7 @@ local function createText(width, horizontalAlign)
     local text = ui.Text.new(overlayWindow.content)
     text:SetSize(width, LAYOUT.normal.height)
     text.font = id.Font.MUSEO_SANS_15PT_REGULAR
-    text.colour = COLOUR.default
+    text.colour = rgbaToVector4(COLOUR.default)
     text.content = ""
     text.clickthrough = true
     text:AlignTo(horizontalAlign or ui.AlignMode.TOPLEFT, ui.AlignMode.CENTRE)
@@ -268,7 +325,7 @@ end
 local function createInfoRow(label)
     local background = ui.Rectangle.new(overlayWindow.content)
     background.fill = true
-    background.colour = COLOUR.rowA
+    background.colour = rgbaToVector4(COLOUR.rowBackground)
     background.clickthrough = true
 
     local labelText = createText(90, ui.AlignMode.TOPLEFT)
@@ -287,7 +344,7 @@ end
 local function createAlertRow()
     local background = ui.Rectangle.new(overlayWindow.content)
     background.fill = true
-    background.colour = COLOUR.alertRow
+    background.colour = rgbaToVector4(COLOUR.alertRow)
     background.clickthrough = true
 
     local text = createText(300, ui.AlignMode.CENTRE)
@@ -307,19 +364,17 @@ local function setRowHidden(row, hidden)
     row.value.hidden = hidden
 end
 
-local function positionRow(row, y, height, stripeIndex)
+local function positionRow(row, y, height)
     row.background:SetPos(12, y - 2)
     row.background:SetSize(316, height + 4)
 
     if row.alert then
-        row.background.colour = COLOUR.alertRow
+        row.background.colour = rgbaToVector4(COLOUR.alertRow)
         row.value:SetPos(20, y)
         row.value:SetSize(300, height)
         return
     end
-
-    row.background.colour = stripeIndex % 2 == 0 and COLOUR.rowB or COLOUR.rowA
-
+    row.background.colour = rgbaToVector4(COLOUR.rowBackground)
     row.label:SetPos(20, y)
     row.label:SetSize(90, height)
     row.value:SetPos(116, y)
@@ -361,17 +416,21 @@ local function applyColours()
     for _, name in ipairs({ "phase", "form", "weakness", "artefact", "souls" }) do
         local row = rows[name]
         if row and row.label then
-            row.label.colour = COLOUR.label
+            row.label.colour = rgbaToVector4(COLOUR.label)
         end
     end
 
-    if rows.phase then rows.phase.value.colour = selectedColour(COLOUR.accent) end
-    if rows.form then rows.form.value.colour = selectedColour(formColour(cache.form)) end
-    if rows.weakness then rows.weakness.value.colour = selectedColour(formColour(cache.form)) end
-    if rows.artefact then rows.artefact.value.colour = selectedColour(artefactColour(cache.artefact)) end
-    if rows.souls then rows.souls.value.colour = COLOUR.default end
-    if rows.timeStop then rows.timeStop.value.colour = selectedColour(COLOUR.danger) end
-    if rows.mechanic then rows.mechanic.value.colour = selectedColour(COLOUR.danger) end
+    if rows.phase then rows.phase.value.colour = rgbaToVector4(selectedColour(COLOUR.accent)) end
+    if rows.form then rows.form.value.colour = rgbaToVector4(selectedColour(formColour(cache.form))) end
+    if rows.weakness then rows.weakness.value.colour = rgbaToVector4(selectedColour(formColour(cache.form))) end
+    if rows.artefact then rows.artefact.value.colour = rgbaToVector4(selectedColour(artefactColour(cache.artefact))) end
+    if rows.souls then rows.souls.value.colour = rgbaToVector4(COLOUR.default) end
+    if rows.timeStop then rows.timeStop.value.colour = rgbaToVector4(selectedColour(COLOUR.danger)) end
+    if rows.mechanic then rows.mechanic.value.colour = rgbaToVector4(selectedColour(COLOUR.danger)) end
+end
+
+local function refreshColours()
+    refreshColours()
 end
 
 local function rowIsVisible(name)
@@ -397,12 +456,13 @@ local INFO_ROW_ORDER = { "phase", "form", "weakness", "artefact", "souls" }
 local ALERT_ROW_ORDER = { "timeStop", "mechanic" }
 
 local function relayoutRows()
-    if not overlayWindow then return end
+    if not overlayWindow then
+        return
+    end
 
     local layout = activeLayout()
     local y = layout.startY
     local lastBottom = layout.startY
-    local stripeIndex = 0
 
     for _, name in ipairs(INFO_ROW_ORDER) do
         local row = rows[name]
@@ -410,8 +470,7 @@ local function relayoutRows()
         setRowHidden(row, not visible)
 
         if visible then
-            stripeIndex = stripeIndex + 1
-            positionRow(row, y, layout.height, stripeIndex)
+            positionRow(row, y, layout.height)
             lastBottom = y + layout.height
             y = y + layout.spacing
         end
@@ -434,7 +493,7 @@ local function relayoutRows()
             setRowHidden(row, not visible)
 
             if visible then
-                positionRow(row, y, layout.height, 0)
+                positionRow(row, y, layout.height)
                 lastBottom = y + layout.height
                 y = y + layout.spacing
             end
@@ -459,6 +518,28 @@ local function setBoolSetting(field, dbKey, value, refreshColour)
         applyColours()
     end
     relayoutRows()
+end
+
+local function setCustomColour(option, value)
+    COLOUR[option.key] = value
+    saveColour(option.db, value)
+
+    refreshColours()
+end
+
+local function resetCustomColours(pickers)
+    for _, option in ipairs(COLOUR_SETTINGS) do
+        COLOUR[option.key] = DEFAULT_COLOUR[option.key]
+        saveColour(option.db, DEFAULT_COLOUR[option.key])
+
+        local picker = pickers and pickers[option.key]
+        if picker then
+            picker:SetValue(DEFAULT_COLOUR[option.key], false)
+        end
+    end
+
+    applyWindowTitleColour()
+    applyColours()
 end
 
 local function buildSettingsContent(host)
@@ -491,11 +572,43 @@ local function buildSettingsContent(host)
     })
 
     host:AddDivider({ marginTop = 8, marginBottom = 8 })
+    host:AddTitle("Colours")
+    host:AddText("Choose the colours used by the encounter overlay.")
+
+    local colourPickers = {}
+
+    for _, option in ipairs(COLOUR_SETTINGS) do
+        local colourOption = option
+
+        host:AddText({
+            text = colourOption.label,
+            marginTop = 6,
+            marginBottom = 2
+        })
+
+        colourPickers[colourOption.key] = host:AddColourPicker({
+            value = COLOUR[colourOption.key],
+            windowTitle = colourOption.label,
+            tooltip = "Choose the " .. string.lower(colourOption.label) .. " colour.",
+            onChange = function(_, value)
+                setCustomColour(colourOption, value)
+            end
+        })
+    end
+
+    host:AddFancyButton("Reset colours to default", function()
+        resetCustomColours(colourPickers)
+    end, {
+        variant = "neutral",
+        tooltip = "Restore the original QBD Helper colours."
+    })
+
+    host:AddDivider({ marginTop = 8, marginBottom = 8 })
     host:AddTitle("Visible rows")
     host:AddCheckboxButton({
         { text = "Phase", value = "phase", selected = settings.showPhase },
         { text = "Form", value = "form", selected = settings.showForm },
-        { text = "Recommended style", value = "weakness", selected = settings.showWeakness },
+        { text = "Weakness", value = "weakness", selected = settings.showWeakness },
         { text = "Artefact", value = "artefact", selected = settings.showArtefact },
         { text = "Tortured Souls", value = "souls", selected = settings.showSouls },
         { text = "Time Stop", value = "timestop", selected = settings.showTimeStop },
@@ -670,7 +783,7 @@ function QBDUI.Create()
 
     alertDivider = ui.Rectangle.new(overlayWindow.content)
     alertDivider.fill = true
-    alertDivider.colour = COLOUR.divider
+    alertDivider.colour = rgbaToVector4(COLOUR.divider)
     alertDivider.clickthrough = true
 
     QBDUI.Reset()
@@ -729,7 +842,9 @@ function QBDUI.GetMechanicDurationTicks()
 end
 
 function QBDUI.Update(data)
-    if not overlayWindow or not data then return end
+    if not overlayWindow or not data then
+        return
+    end
 
     if data.phase ~= cache.phase then
         cache.phase = data.phase
@@ -776,7 +891,10 @@ end
 
 function QBDUI.Reset()
     cache = {}
-    if not overlayWindow then return end
+
+    if not overlayWindow then
+        return
+    end
 
     rows.phase.value.content = "-"
     rows.form.value.content = "Normal"
@@ -826,3 +944,4 @@ function QBDUI.Destroy()
 end
 
 return QBDUI
+

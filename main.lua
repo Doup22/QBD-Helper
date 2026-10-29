@@ -369,4 +369,4 @@ function PluginShutdown()
     QBDUI.Destroy()
 end
 
-print("QBD Helper v1.0.0 loaded.")
+print("QBD Helper v1.0.1 loaded.")
